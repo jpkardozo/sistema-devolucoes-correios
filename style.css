@@ -1,0 +1,215 @@
+/* Reset Básico */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #f0f2f5;
+    color: #333;
+    padding-bottom: 50px;
+}
+
+header {
+    background-color: #003399; /* Azul Correios */
+    color: #fff;
+    padding: 20px;
+    text-align: center;
+    border-bottom: 5px solid #FFE600; /* Amarelo Correios */
+}
+
+.container {
+    max-width: 1350px; /* Largura um pouco maior para comportar a tabela com colunas */
+    margin: 30px auto;
+    padding: 0 15px;
+}
+
+/* Elemento Card */
+.card {
+    background-color: #fff;
+    padding: 25px;
+    margin-bottom: 25px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+h2 {
+    margin-bottom: 20px;
+    color: #003399;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 8px;
+}
+
+h3 {
+    margin-bottom: 15px;
+    color: #555;
+}
+
+.duas-colunas {
+    display: flex;
+    gap: 30px;
+    flex-wrap: wrap;
+}
+
+.duas-colunas .sub-secao {
+    flex: 1;
+    min-width: 280px;
+}
+
+.sub-secao {
+    margin-bottom: 20px;
+}
+
+hr {
+    border: 0;
+    height: 1px;
+    background: #ddd;
+    margin: 25px 0;
+}
+
+/* Formulários */
+.form-group {
+    margin-bottom: 15px;
+}
+
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+input, select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+input:focus, select:focus {
+    outline: none;
+    border-color: #003399;
+}
+
+/* Botões */
+button {
+    background-color: #003399;
+    color: white;
+    padding: 11px 20px;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+button:hover {
+    background-color: #002266;
+}
+
+.btn-secundario {
+    background-color: #6c757d;
+}
+.btn-secundario:hover {
+    background-color: #5a6268;
+}
+
+.btn-sucesso {
+    background-color: #28a745;
+    width: 100%;
+}
+.btn-sucesso:hover {
+    background-color: #218838;
+}
+
+.btn-pdf {
+    background-color: #dc3545;
+    margin-bottom: 20px;
+}
+.btn-pdf:hover {
+    background-color: #bd2130;
+}
+
+.sucesso-msg {
+    color: #28a745;
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+/* ESTILIZAÇÃO DO RELATÓRIO DO PDF */
+.folha-relatorio {
+    background-color: #ffffff;
+    border: 1px solid #ccc;
+    padding: 40px;
+    color: #000;
+}
+
+.cabecalho-pdf {
+    border-bottom: 2px solid #000;
+    padding-bottom: 15px;
+    margin-bottom: 25px;
+}
+
+.cabecalho-pdf h2 {
+    color: #000;
+    border: none;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.cabecalho-pdf p {
+    font-size: 0.95rem;
+    margin-bottom: 5px;
+    line-height: 1.4;
+}
+
+.tabela-responsiva {
+    overflow-x: auto;
+}
+
+.tabela-pdf {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 40px;
+}
+
+.tabela-pdf th, .tabela-pdf td {
+    border: 1px solid #000;
+    padding: 8px 10px;
+    text-align: left;
+    font-size: 0.85rem;
+}
+
+.tabela-pdf th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+    text-align: center;
+}
+
+.tabela-pdf th:nth-child(1), .tabela-pdf th:nth-child(2) {
+    text-align: left;
+}
+
+.assinaturas-pdf {
+    margin-top: 50px;
+    display: flex;
+    justify-content: center;
+}
+
+.linha-assinatura {
+    text-align: center;
+    width: 60%;
+}
+
+.linha-assinatura .linha {
+    border-top: 1px solid #000;
+    margin-bottom: 5px;
+}
+
+.linha-assinatura p {
+    font-size: 0.85rem;
+}
