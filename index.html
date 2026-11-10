@@ -2,154 +2,94 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Devolução de Objetos</title>
+    <title>Controle de Devoluções - Correios</title>
     <link rel="stylesheet" href="style.css">
-    
-    <!-- 1. Biblioteca externa para gerar PDF -->
-    <script src="html2pdf.bundle.min.js"></script>
-
-    <!-- 2. SDK Oficial do Supabase via CDN -->
+    <!-- SDK do Supabase -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <!-- 3. Inicialização global única do cliente Supabase -->
-    <script>
-        const SUPABASE_URL = 'https://plzpbntxkyalenpphftn.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsenBibnR4a3lhbGVucHBoZnRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0NTM4MzYsImV4cCI6MjEwNDAyOTgzNn0.rLgLrgUS0PTwIW33AFY_AhVX7_Qsiw2Vxfdr3jDlULM';
-        
-        // Cria a instância global unificada
-        window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    </script>
 </head>
 <body>
 
-    <header>
-        <h1>Gestão de Devoluções - Correios</h1>
-    </header>
+    <h1>Sistema de Controle de Devoluções - Correios</h1>
 
-    <main class="container">
+    <!-- 1. Configuração do Gestor -->
+    <div class="secao-bloco">
+        <h3>Gestor Imediato</h3>
+        <p id="gestor-salvo-info">Carregando gestor...</p>
+        <form id="form-gestor">
+            <input type="text" id="nome-gestor" placeholder="Nome do Gestor" required>
+            <input type="text" id="matricula-gestor" placeholder="Matrícula (0.000.000-0)" required>
+            <button type="submit">Salvar Gestor</button>
+        </form>
+    </div>
+
+    <!-- 2. Cadastrar Novo Carteiro -->
+    <div class="secao-bloco">
+        <h3>Cadastrar Carteiro</h3>
+        <form id="form-carteiro">
+            <input type="text" id="nome-carteiro" placeholder="Nome do Carteiro" required>
+            <input type="text" id="matricula-carteiro" placeholder="Matrícula (0.000.000-0)" required>
+            <button type="submit">Adicionar Carteiro</button>
+        </form>
+    </div>
+
+    <!-- 3. Cadastrar Novo Motivo (Integrado com IndexedDB) -->
+    <div class="cadastro-box">
+        <h3>Cadastrar Novo Motivo de Devolução</h3>
+        <form id="form-motivo">
+            <input type="text" id="nome-motivo" placeholder="Digite o novo motivo aqui..." required>
+            <button type="submit">Adicionar à Lista</button>
+        </form>
+    </div>
+
+    <!-- 4. Registrar Lançamento de Devoluções (Em Tabela) -->
+    <div class="secao-bloco">
+        <h3>Registrar Lançamentos de Devolução</h3>
+        <label><strong>Data dos Lançamentos:</strong></label><br>
+        <input type="date" id="data-devolucao" required style="margin-bottom: 15px;"><br>
+
+        <form id="form-devolucao-lote">
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr id="cabecalho-lancamento">
+                            <!-- Gerado dinamicamente via JS -->
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-lancamento-linhas">
+                        <!-- Gerado dinamicamente via JS -->
+                    </tbody>
+                </table>
+            </div>
+            <br>
+            <button type="submit">Salvar Todos os Lançamentos</button>
+        </form>
+    </div>
+
+    <!-- 5. Visualização e Relatório para PDF -->
+    
+    <div id="relatorio-impressao">
+        <h2>Relatório Diário de Devoluções</h2>
+        <p><b>Data:</b> <span id="relatorio-data-texto">--/--/----</span></p>
+        <p><b>Gestor:</b> <span id="pdf-gestor-nome">---</span> (Matrícula: <span id="pdf-gestor-mat">---</span>)</p>
         
-        <!-- SEÇÃO 1: CADASTROS -->
-        <section class="card">
-            <h2>⚙️ Cadastros Iniciais</h2>
-            
-            <!-- Cadastro do Gestor -->
-            <div class="sub-secao">
-                <h3>Gestor Imediato</h3>
-                <form id="form-gestor">
-                    <div class="form-group">
-                        <label for="nome-gestor">Nome Completo:</label>
-                        <input type="text" id="nome-gestor" required placeholder="Nome do Gestor">
-                    </div>
-                    <div class="form-group">
-                        <label for="matricula-gestor">Matrícula Funcional (0.000.000-0):</label>
-                        <input type="text" id="matricula-gestor" required placeholder="0.000.000-0" maxlength="13">
-                    </div>
-                    <button type="submit">Salvar Gestor</button>
-                </form>
-                <p id="gestor-salvo-info" class="sucesso-msg"></p>
-            </div>
+        <table border="1" style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+            <thead>
+                <tr style="background-color: #f2f2f2;">
+                    <th style="padding: 8px; text-align: left;">Motivo da Devolução</th>
+                    <th style="padding: 8px; text-align: center;">Quantidade Total</th>
+                </tr>
+            </thead>
+            <tbody id="relatorio-tabela-linhas">
+                <!-- Os totais calculados entram aqui automaticamente -->
+            </tbody>
+        </table>
+    </div>
 
-            <hr>
+    <!-- Botão de Gerar PDF -->
+    <button id="btn-gerar-pdf" type="button" style="margin-top: 20px;">Salvar Relatório em PDF</button>
 
-            <div class="duas-colunas">
-                <!-- Cadastro de Carteiro -->
-                <div class="sub-secao">
-                    <h3>Cadastrar Novo Carteiro</h3>
-                    <form id="form-carteiro">
-                        <div class="form-group">
-                            <label for="nome-carteiro">Nome Completo:</label>
-                            <input type="text" id="nome-carteiro" required placeholder="Nome do Carteiro">
-                        </div>
-                        <div class="form-group">
-                            <label for="matricula-carteiro">Matrícula Funcional (0.000.000-0):</label>
-                            <input type="text" id="matricula-carteiro" required placeholder="0.000.000-0" maxlength="13">
-                        </div>
-                        <button type="submit" class="btn-secundario">Cadastrar Carteiro</button>
-                    </form>
-                </div>
-
-                <!-- Cadastro de Motivos -->
-                <div class="sub-secao">
-                    <h3>Cadastrar Motivo de Devolução</h3>
-                    <form id="form-motivo">
-                        <div class="form-group">
-                            <label for="nome-motivo">Descrição do Motivo:</label>
-                            <input type="text" id="nome-motivo" required placeholder="Ex: Mudou-se, Ausente, Recusado">
-                        </div>
-                        <button type="submit" class="btn-secundario">Cadastrar Motivo</button>
-                    </form>
-                </div>
-            </div>
-        </section>
-
-        <!-- SEÇÃO 2: LANÇAMENTO DIÁRIO -->
-        <section class="card">
-            <h2>📦 Lançamento de Devoluções</h2>
-            <form id="form-devolucao">
-                <div class="form-group">
-                    <label for="data-devolucao">Data da Devolução:</label>
-                    <input type="date" id="data-devolucao" required>
-                </div>
-                <div class="form-group">
-                    <label for="select-carteiro">Selecione o Carteiro:</label>
-                    <select id="select-carteiro" required>
-                        <option value="">-- Escolha um carteiro cadastrado --</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="select-motivo">Selecione o Motivo da Devolução:</label>
-                    <select id="select-motivo" required>
-                        <option value="">-- Escolha um motivo cadastrado --</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="qtd-objetos">Quantidade de Objetos:</label>
-                    <input type="number" id="qtd-objetos" min="1" required placeholder="Ex: 5">
-                </div>
-                <button type="submit" class="btn-sucesso">Registrar Devolução</button>
-            </form>
-        </section>
-
-        <!-- SEÇÃO 3: RELATÓRIO DO DIA -->
-        <section class="card">
-            <h2>📄 Relatório Final do Dia</h2>
-            <button id="btn-gerar-pdf" class="btn-pdf">📥 Salvar Relatório em PDF</button>
-
-            <div id="area-relatorio" class="folha-relatorio">
-                <div class="cabecalho-pdf">
-                    <h2>RELATÓRIO DIÁRIO DE DEVOLUÇÕES</h2>
-                    <p><strong>Lotação da Agência:</strong> <span id="pdf-lotacao">Agência de Correios</span></p>
-                    <p><strong>Data:</strong> <span id="pdf-data">--/--/----</span></p>
-                    <p><strong>Gestor Imediato:</strong> <span id="pdf-gestor-nome">Não cadastrado</span> (Matrícula: <span id="pdf-gestor-mat">--</span>)</p>
-                </div>
-
-                <div class="tabela-responsiva">
-                    <table class="tabela-pdf" id="tabela-relatorio">
-                        <thead>
-                            <tr id="cabecalho-tabela">
-                                <th>Matrícula</th>
-                                <th>Carteiro</th>
-                                <th style="text-align: center;">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabela-pdf-linhas"></tbody>
-                        <tfoot id="rodape-tabela"></tfoot>
-                    </table>
-                </div>
-
-                <div class="assinaturas-pdf">
-                    <div class="linha-assinatura">
-                        <div class="linha"></div>
-                        <p>Assinatura do Gestor Imediato</p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-    </main>
-
-    <!-- 4. Script principal de lógica (sem redeclarar o supabase) -->
+    <!-- Biblioteca html2pdf para exportação -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

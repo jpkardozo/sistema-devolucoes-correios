@@ -1,77 +1,71 @@
-// ==========================================================================
-// SELETORES DE ELEMENTOS DO DOM
-// ==========================================================================
+// ==========================================
+// 1. CONFIGURAÇÃO DO SUPABASE
+// ==========================================
+const SUPABASE_URL = 'https://plzpbntxkyalenpphftn.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsenBibnR4a3lhbGVucHBoZnRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0NTM4MzYsImV4cCI6MjEwNDAyOTgzNn0.rLgLrgUS0PTwIW33AFY_AhVX7_Qsiw2Vxfdr3jDlULM';
+
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ==========================================
+// 2. SELEÇÃO DE ELEMENTOS DO DOM
+// ==========================================
 const formGestor = document.getElementById('form-gestor');
 const inputNomeGestor = document.getElementById('nome-gestor');
 const inputMatriculaGestor = document.getElementById('matricula-gestor');
 const gestorSalvoInfo = document.getElementById('gestor-salvo-info');
 
+const pdfGestorNome = document.getElementById('pdf-gestor-nome');
+const pdfGestorMat = document.getElementById('pdf-gestor-mat');
+
+// Carteiros
 const formCarteiro = document.getElementById('form-carteiro');
 const inputNomeCarteiro = document.getElementById('nome-carteiro');
 const inputMatriculaCarteiro = document.getElementById('matricula-carteiro');
 
+// Motivos
 const formMotivo = document.getElementById('form-motivo');
-const inputNomeMotivo = document.getElementById('nome-motivo');
+const inputNovoMotivo = document.getElementById('novo-motivo');
 
-const formDevolucao = document.getElementById('form-devolucao');
+// Lançamentos e Relatório / PDF
 const inputDataDevolucao = document.getElementById('data-devolucao');
-const selectCarteiro = document.getElementById('select-carteiro');
-const selectMotivo = document.getElementById('select-motivo');
-const inputQtdObjetos = document.getElementById('qtd-objetos');
-
-const pdfData = document.getElementById('pdf-data');
-const pdfGestorNome = document.getElementById('pdf-gestor-nome');
-const pdfGestorMat = document.getElementById('pdf-gestor-mat');
-const cabecalhoTabela = document.getElementById('cabecalho-tabela');
-const tabelaPdfLinhas = document.getElementById('tabela-pdf-linhas');
-const rodapeTabela = document.getElementById('rodape-tabela');
+const formDevolucaoLote = document.getElementById('form-devolucao-lote');
+const cabecalhoLancamento = document.getElementById('cabecalho-lancamento');
+const tabelaLancamentoLinhas = document.getElementById('tabela-lancamento-linhas');
 const btnGerarPdf = document.getElementById('btn-gerar-pdf');
 
-// Motivos Padrão dos Correios caso a tabela esteja vazia
-const motivosIniciaisPadrao = ["Mudou-se", "Endereço Insuficiente", "Ausente", "Não Procurado", "Recusado"];
-
-// ==========================================================================
-// FUNÇÕES AUXILIARES (TRATAMENTO DE DATAS E MÁSCARAS)
-// ==========================================================================
-
-function aplicarMascaraMatricula(inputElement) {
-    inputElement.addEventListener('input', (e) => {
-        let value = e.target.value.replace(/\D/g, "");
-        if (value.length > 1) value = value.substring(0, 1) + "." + value.substring(1);
-        if (value.length > 5) value = value.substring(0, 5) + "." + value.substring(5);
-        if (value.length > 9) value = value.substring(0, 9) + "-" + value.substring(9, 10);
-        e.target.value = value;
-    });
-}
-
-if (inputMatriculaGestor) aplicarMascaraMatricula(inputMatriculaGestor);
-if (inputMatriculaCarteiro) aplicarMascaraMatricula(inputMatriculaCarteiro);
-
-function validarFormatoMatricula(matricula) {
-    return /^\d\.\d{3}\.\d{3}-\d$/.test(matricula);
-}
-
-function definirDataAtualNoInput() {
-    const hoje = new Date();
-    const dia = String(hoje.getDate()).padStart(2, '0');
-    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
-    const ano = hoje.getFullYear();
+// ==========================================
+// 3. INICIALIZAÇÃO AO CARREGAR A PÁGINA
+// ==========================================
+document.addEventListener('DOMContentLoaded', async () => {
     if (inputDataDevolucao) {
-        inputDataDevolucao.value = `${ano}-${mes}-${dia}`;
+        const hoje = new Date().toISOString().split('T')[0];
+        inputDataDevolucao.value = hoje;
     }
-}
 
-function formatarDataParaBR(dataIso) {
-    if (!dataIso) return '--/--/----';
-    const partes = dataIso.split('-');
+    await carregarGestor();
+    await verificarPadroesMotivos();
+    await renderizarTabelaLancamentos();
+    await gerarVisualizacaoRelatorio();
+});
+
+// ==========================================
+// 4. FUNÇÕES DE SUPORTE E FORMATAÇÃO
+// ==========================================
+function formatarDataParaBR(dataISO) {
+    if (!dataISO) return '';
+    const partes = dataISO.split('-');
+    if (partes.length !== 3) return dataISO;
     return `${partes[2]}/${partes[1]}/${partes[0]}`;
 }
 
-// ==========================================================================
-// CRUDS E PERSISTÊNCIA DE DADOS (SUPABASE)
-// ==========================================================================
+function validarFormatoMatricula(matricula) {
+    const regex = /^\d\.\d{3}\.\d{3}-\d$/;
+    return regex.test(matricula);
+}
 
-// Salvar / Atualizar Gestor Imediato
+// ==========================================
+// 5. GESTOR (SALVAR E CARREGAR)
+// ==========================================
 if (formGestor) {
     formGestor.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -79,47 +73,45 @@ if (formGestor) {
         const matricula = inputMatriculaGestor.value;
 
         if (!validarFormatoMatricula(matricula)) {
-            alert("Erro: A matrícula deve seguir estritamente o padrão 0.000.000-0");
+            alert("Erro: A matrícula deve seguir o padrão 0.000.000-0");
             return;
         }
 
-        const { error } = await window.supabase
+        const { error } = await supabaseClient
             .from('gestor')
             .upsert({ id: 'atual', nome, matricula });
 
         if (error) {
-            console.error("Erro ao salvar gestor:", error.message);
+            console.error("Erro ao salvar gestor:", error);
             alert("Erro ao salvar o gestor no Supabase.");
-            return;
+        } else {
+            await carregarGestor();
+            alert("Gestor salvo com sucesso!");
         }
-
-        await carregarGestor();
-        alert("Gestor salvo com sucesso!");
     });
 }
 
 async function carregarGestor() {
-    const { data, error } = await window.supabase
+    const { data } = await supabaseClient
         .from('gestor')
         .select('*')
         .eq('id', 'atual')
         .maybeSingle();
 
-    if (error) {
-        console.error("Erro ao carregar gestor:", error.message);
-        return;
-    }
-
     if (data) {
-        gestorSalvoInfo.textContent = `Gestor Atual: ${data.nome} (${data.matricula})`;
-        pdfGestorNome.textContent = data.nome;
-        pdfGestorMat.textContent = data.matricula;
+        if (gestorSalvoInfo) gestorSalvoInfo.textContent = `Gestor Atual: ${data.nome} (${data.matricula})`;
+        if (pdfGestorNome) pdfGestorNome.textContent = data.nome;
+        if (pdfGestorMat) pdfGestorMat.textContent = data.matricula;
     } else {
-        gestorSalvoInfo.textContent = "Nenhum gestor cadastrado ainda.";
+        if (gestorSalvoInfo) gestorSalvoInfo.textContent = "Nenhum gestor cadastrado ainda.";
+        if (pdfGestorNome) pdfGestorNome.textContent = "---";
+        if (pdfGestorMat) pdfGestorMat.textContent = "---";
     }
 }
 
-// Cadastrar Carteiro
+// ==========================================
+// 6. CADASTRO DE CARTEIROS
+// ==========================================
 if (formCarteiro) {
     formCarteiro.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -131,291 +123,204 @@ if (formCarteiro) {
             return;
         }
 
-        const { error } = await window.supabase
+        const { error } = await supabaseClient
             .from('carteiros')
             .upsert({ matricula, nome });
 
         if (error) {
-            console.error("Erro ao cadastrar carteiro:", error.message);
-            alert("Erro ao cadastrar carteiro.");
-            return;
+            console.error("Erro ao cadastrar carteiro:", error);
+            alert("Erro ao salvar carteiro no Supabase.");
+        } else {
+            alert("Carteiro cadastrado com sucesso!");
+            formCarteiro.reset();
+            await renderizarTabelaLancamentos();
         }
-
-        formCarteiro.reset();
-        await carregarDropdownCarteiros();
-        await gerarVisualizacaoRelatorio();
-        alert("Carteiro cadastrado com sucesso!");
     });
 }
 
-async function carregarDropdownCarteiros() {
-    const valorPreSelecionado = selectCarteiro.value;
-
-    const { data: carteiros, error } = await window.supabase
-        .from('carteiros')
-        .select('*')
-        .order('nome', { ascending: true });
-
-    if (error) {
-        console.error("Erro ao carregar carteiros:", error.message);
-        return;
-    }
-
-    selectCarteiro.innerHTML = '<option value="">-- Escolha um carteiro cadastrado --</option>';
-    
-    if (carteiros) {
-        carteiros.forEach(carteiro => {
-            const option = document.createElement('option');
-            option.value = JSON.stringify(carteiro);
-            option.textContent = `${carteiro.nome} (${carteiro.matricula})`;
-            selectCarteiro.appendChild(option);
-        });
-    }
-
-    if (valorPreSelecionado) {
-        selectCarteiro.value = valorPreSelecionado;
-    }
-}
-
-// Cadastrar Novo Motivo de Devolução
-if (formMotivo) {
-    formMotivo.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const nome = inputNomeMotivo.value.trim();
-
-        if (!nome) return;
-
-        const { error } = await window.supabase
-            .from('motivos')
-            .upsert({ nome });
-
-        if (error) {
-            console.error("Erro ao cadastrar motivo:", error.message);
-            alert("Erro ao cadastrar motivo.");
-            return;
-        }
-
-        formMotivo.reset();
-        await carregarDropdownMotivos();
-        await gerarVisualizacaoRelatorio();
-        alert("Motivo cadastrado com sucesso!");
-    });
-}
-
-async function carregarDropdownMotivos() {
-    const valorPreSelecionado = selectMotivo.value;
-
-    const { data: motivosData, error } = await window.supabase
+// ==========================================
+// 7. MOTIVOS E PADRÕES
+// ==========================================
+async function verificarPadroesMotivos() {
+    let { data: motivos } = await supabaseClient
         .from('motivos')
         .select('nome');
 
-    if (error) {
-        console.error("Erro ao carregar motivos:", error.message);
-        return;
-    }
-
-    let motivos = motivosData ? motivosData.map(m => m.nome) : [];
-
-    if (motivos.length === 0) {
-        const payloadIniciais = motivosIniciaisPadrao.map(m => ({ nome: m }));
-        const { error: errIns } = await window.supabase.from('motivos').upsert(payloadIniciais);
-        if (!errIns) {
-            return carregarDropdownMotivos();
-        }
-    }
-
-    selectMotivo.innerHTML = '<option value="">-- Escolha um motivo cadastrado --</option>';
-    motivos.forEach(motivo => {
-        const option = document.createElement('option');
-        option.value = motivo;
-        option.textContent = motivo;
-        selectMotivo.appendChild(option);
-    });
-
-    if (valorPreSelecionado) {
-        selectMotivo.value = valorPreSelecionado;
-    }
-}
-
-// Registrar Lançamento de Devolução
-if (formDevolucao) {
-    formDevolucao.addEventListener('submit', async (e) => {
-        e.preventDefault();
+    if (!motivos || motivos.length === 0) {
+        const motivosIniciaisPadrao = ["Mudou-se", "Endereço Insuficiente", "Ausente", "Não Procurado", "Recusado"];
+        const payload = motivosIniciaisPadrao.map(m => ({ nome: m }));
         
-        if (!selectCarteiro.value || !selectMotivo.value || !inputDataDevolucao.value) return;
+        await supabaseClient.from('motivos').upsert(payload, { onConflict: 'nome' });
+    }
+}
 
-        const carteiro = JSON.parse(selectCarteiro.value);
-        const motivo = selectMotivo.value;
-        const quantidade = parseInt(inputQtdObjetos.value);
-        const dataSelecionada = formatarDataParaBR(inputDataDevolucao.value);
+if (formMotivo) {
+    formMotivo.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const nomeMotivo = inputNovoMotivo.value.trim();
 
-        if (isNaN(quantidade) || quantidade <= 0) {
-            alert("Insira uma quantidade válida.");
-            return;
-        }
+        if (!nomeMotivo) return;
 
-        const { data: existente, error: errBusca } = await window.supabase
-            .from('lancamentos')
-            .select('*')
-            .eq('data', dataSelecionada)
-            .eq('matricula', carteiro.matricula)
-            .eq('motivo', motivo)
-            .maybeSingle();
+        const { error } = await supabaseClient
+            .from('motivos')
+            .upsert({ nome: nomeMotivo }, { onConflict: 'nome' });
 
-        if (errBusca) {
-            console.error("Erro ao consultar lançamentos:", errBusca.message);
-            return;
-        }
-
-        let errorOp;
-        if (existente) {
-            const novaQtd = existente.quantidade + quantidade;
-            const { error } = await window.supabase
-                .from('lancamentos')
-                .update({ quantidade: novaQtd })
-                .eq('id', existente.id);
-            errorOp = error;
+        if (error) {
+            console.error("Erro ao adicionar motivo:", error);
+            alert("Erro ao cadastrar novo motivo.");
         } else {
-            const { error } = await window.supabase
-                .from('lancamentos')
-                .insert([{
-                    matricula: carteiro.matricula,
-                    nome: carteiro.nome,
-                    motivo: motivo,
-                    quantidade: quantidade,
-                    data: dataSelecionada
-                }]);
-            errorOp = error;
+            alert("Motivo adicionado com sucesso!");
+            formMotivo.reset();
+            await renderizarTabelaLancamentos();
+            await gerarVisualizacaoRelatorio();
         }
-
-        if (errorOp) {
-            console.error("Erro ao salvar lançamento:", errorOp.message);
-            alert("Erro ao salvar lançamento no banco de dados.");
-            return;
-        }
-
-        inputQtdObjetos.value = "";
-        await gerarVisualizacaoRelatorio();
-        alert(`Devolução registrada com sucesso para o dia ${dataSelecionada}!`);
     });
 }
 
+// ==========================================
+// 8. LANÇAMENTOS E TABELA DINÂMICA
+// ==========================================
 if (inputDataDevolucao) {
-    inputDataDevolucao.addEventListener('change', gerarVisualizacaoRelatorio);
+    inputDataDevolucao.addEventListener('change', async () => {
+        await renderizarTabelaLancamentos();
+        await gerarVisualizacaoRelatorio();
+    });
 }
 
-// ==========================================================================
-// RENDERIZAÇÃO DO RELATÓRIO DO DIA
-// ==========================================================================
+async function renderizarTabelaLancamentos() {
+    if (!tabelaLancamentoLinhas || !cabecalhoLancamento) return;
 
-async function gerarVisualizacaoRelatorio() {
-    if (!inputDataDevolucao) return;
     const dataFiltro = formatarDataParaBR(inputDataDevolucao.value);
-    pdfData.textContent = dataFiltro;
 
     const [resCarteiros, resMotivos, resLancamentos] = await Promise.all([
-        window.supabase.from('carteiros').select('*').order('nome', { ascending: true }),
-        window.supabase.from('motivos').select('nome'),
-        window.supabase.from('lancamentos').select('*').eq('data', dataFiltro)
+        supabaseClient.from('carteiros').select('*'),
+        supabaseClient.from('motivos').select('nome'),
+        supabaseClient.from('lancamentos').select('*').eq('data', dataFiltro)
     ]);
 
     const carteiros = resCarteiros.data || [];
     const motivos = (resMotivos.data || []).map(m => m.nome);
     const lancamentos = resLancamentos.data || [];
 
-    cabecalhoTabela.innerHTML = `
+    cabecalhoLancamento.innerHTML = `
         <th>Matrícula</th>
         <th>Carteiro</th>
         ${motivos.map(m => `<th style="text-align: center;">${m}</th>`).join('')}
-        <th style="text-align: center;">Total</th>
     `;
 
-    tabelaPdfLinhas.innerHTML = "";
+    tabelaLancamentoLinhas.innerHTML = "";
 
     if (carteiros.length === 0) {
-        tabelaPdfLinhas.innerHTML = `<tr><td colspan="${motivos.length + 3}" style="text-align: center; color: #888;">Nenhum carteiro cadastrado no sistema.</td></tr>`;
-        rodapeTabela.innerHTML = "";
+        tabelaLancamentoLinhas.innerHTML = `<tr><td colspan="${motivos.length + 2}" style="text-align: center; color: #888;">Nenhum carteiro cadastrado. Cadastre carteiros para realizar lançamentos.</td></tr>`;
         return;
     }
 
-    const totaisPorMotivo = {};
-    motivos.forEach(m => totaisPorMotivo[m] = 0);
-    let totalGeralDoDia = 0;
-
     carteiros.forEach(carteiro => {
-        let totalCarteiro = 0;
-        const colunasQuantidade = [];
+        const tr = document.createElement('tr');
+        let htmlColunas = `<td>${carteiro.matricula}</td><td>${carteiro.nome}</td>`;
 
         motivos.forEach(motivo => {
             const lanc = lancamentos.find(l => l.matricula === carteiro.matricula && l.motivo === motivo);
-            const qtd = lanc ? lanc.quantidade : 0;
-
-            colunasQuantidade.push(`<td style="text-align: center;">${qtd > 0 ? qtd : '-'}</td>`);
-            totaisPorMotivo[motivo] += qtd;
-            totalCarteiro += qtd;
+            const qtdSalva = lanc ? lanc.quantidade : "";
+            
+            htmlColunas += `
+                <td style="text-align: center;">
+                    <input type="number" min="0" class="input-qtd" 
+                        data-matricula="${carteiro.matricula}" 
+                        data-nome="${carteiro.nome}" 
+                        data-motivo="${motivo}" 
+                        value="${qtdSalva}" placeholder="-">
+                </td>
+            `;
         });
 
-        totalGeralDoDia += totalCarteiro;
+        tr.innerHTML = htmlColunas;
+        tabelaLancamentoLinhas.appendChild(tr);
+    });
+}
+
+if (formDevolucaoLote) {
+    formDevolucaoLote.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const dataSelecionada = formatarDataParaBR(inputDataDevolucao.value);
+        const inputs = tabelaLancamentoLinhas.querySelectorAll('.input-qtd');
+
+        await supabaseClient.from('lancamentos').delete().eq('data', dataSelecionada);
+
+        const novosLancamentos = [];
+        inputs.forEach(input => {
+            const qtd = parseInt(input.value);
+            if (!isNaN(qtd) && qtd > 0) {
+                novosLancamentos.push({
+                    matricula: input.dataset.matricula,
+                    nome: input.dataset.nome,
+                    motivo: input.dataset.motivo,
+                    quantidade: qtd,
+                    data: dataSelecionada
+                });
+            }
+        });
+
+        if (novosLancamentos.length > 0) {
+            const { error } = await supabaseClient.from('lancamentos').insert(novosLancamentos);
+            if (error) {
+                console.error("Erro ao salvar lançamentos:", error);
+                alert("Erro ao salvar os lançamentos no Supabase.");
+                return;
+            }
+        }
+
+        // CHAMA A GERAÇÃO DO RELATÓRIO AQUI PARA ATUALIZAR A TELA NA HORA
+        await gerarVisualizacaoRelatorio();
+
+        alert(`Lançamentos salvos com sucesso para a data ${dataSelecionada}!`);
+    });
+}
+
+// ==========================================
+// 9. RELATÓRIOS E VISUALIZAÇÃO PARA PDF
+// ==========================================
+async function gerarVisualizacaoRelatorio() {
+    const dataSelecionadaISO = inputDataDevolucao ? inputDataDevolucao.value : '';
+    const dataFormatadaBR = formatarDataParaBR(dataSelecionadaISO);
+
+    const spanDataRelatorio = document.getElementById('relatorio-data-texto');
+    if (spanDataRelatorio) {
+        spanDataRelatorio.textContent = dataFormatadaBR || '--/--/----';
+    }
+
+    const tbodyRelatorio = document.getElementById('relatorio-tabela-linhas');
+    if (!tbodyRelatorio) return;
+
+    const [resMotivos, resLancamentos] = await Promise.all([
+        supabaseClient.from('motivos').select('nome'),
+        supabaseClient.from('lancamentos').select('*').eq('data', dataFormatadaBR)
+    ]);
+
+    const motivos = (resMotivos.data || []).map(m => m.nome);
+    const lancamentos = resLancamentos.data || [];
+
+    tbodyRelatorio.innerHTML = "";
+
+    motivos.forEach(motivo => {
+        const totalMotivo = lancamentos
+            .filter(l => l.motivo === motivo)
+            .reduce((acc, curr) => acc + curr.quantidade, 0);
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td>${carteiro.matricula}</td>
-            <td>${carteiro.nome}</td>
-            ${colunasQuantidade.join('')}
-            <td style="text-align: center; font-weight: bold;">${totalCarteiro}</td>
+            <td>${motivo}</td>
+            <td style="text-align: center; font-weight: bold;">${totalMotivo}</td>
         `;
-        tabelaPdfLinhas.appendChild(tr);
+        tbodyRelatorio.appendChild(tr);
     });
-
-    rodapeTabela.innerHTML = `
-        <tr>
-            <td colspan="2" style="font-weight: bold; text-align: right;">Total Geral:</td>
-            ${motivos.map(m => `<td style="font-weight: bold; text-align: center;">${totaisPorMotivo[m]}</td>`).join('')}
-            <td style="font-weight: bold; text-align: center;">${totalGeralDoDia}</td>
-        </tr>
-    `;
 }
 
-// ==========================================================================
-// EXPORTAÇÃO EM PDF
-// ==========================================================================
+// ==========================================
+// 10. GERAÇÃO DE PDF / IMPRESSÃO
+// ==========================================
 if (btnGerarPdf) {
-    btnGerarPdf.addEventListener('click', async () => {
-        const { data: gestor, error } = await window.supabase
-            .from('gestor')
-            .select('*')
-            .eq('id', 'atual')
-            .maybeSingle();
-
-        if (error || !gestor) {
-            alert("Erro: Por favor, realize o cadastro do Gestor Imediato antes de exportar o PDF.");
-            return;
-        }
-
-        const elementoRelatorio = document.getElementById('area-relatorio');
-        const dataFiltroArquivo = formatarDataParaBR(inputDataDevolucao.value).replace(/\//g, '-');
-        
-        const opcoes = {
-            margin:       [2, 2, 2, 2],
-            filename:     `Relatorio_Devolucoes_${dataFiltroArquivo}.pdf`,
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2, useCORS: true, logging: false, letterRendering: true }, 
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
-        };
-
-        html2pdf().set(opcoes).from(elementoRelatorio).save();
+    btnGerarPdf.addEventListener('click', () => {
+        window.print();
     });
 }
-
-// ==========================================================================
-// INICIALIZAÇÃO DO SISTEMA
-// ==========================================================================
-async function inicializarSistema() {
-    definirDataAtualNoInput(); 
-    await carregarGestor();
-    await carregarDropdownCarteiros();
-    await carregarDropdownMotivos();
-    await gerarVisualizacaoRelatorio();
-}
-
-document.addEventListener('DOMContentLoaded', inicializarSistema);
